@@ -137,10 +137,12 @@ None of these are read in detail; they are map/screen geometry, not combat math.
 
 ## Consequences for the decoupling
 
-1. Three knobs, 11 sites: `engine_overheat_threshold` (1), `enemy_aim_laser_length` (4),
-   `rocket_acceleration` (6, the 2 thrust sites **plus** the 4 preview sites so the reticle stays
-   truthful).
-2. The remaining 71 readers keep reading the vanilla pool entry at `0x140352838` — untouched.
+0. **The enemy aim laser is not decoupled, by user decision (2026-11-17):** the reticle must stay
+   vanilla, so its four readers (`0x14029d538`/`d540`/`d82a`/`d832`) are deliberately left on the pool
+   value. `hf_tuning` v0.3.0 removed the knob it briefly had.
+1. Two knobs, 7 sites: `engine_overheat_threshold` (1), `rocket_acceleration` (6, the 2 thrust sites
+   **plus** the 4 preview sites so the reticle stays truthful).
+2. The remaining 75 readers keep reading the vanilla pool entry at `0x140352838` — untouched.
 3. Do **not** write to `0x140352838` itself: that is the 1.151-era behaviour that coupled everything.
 4. A site patch is 4 bytes (the disp32 at the end of the instruction), so the mod can keep the value
    in its own memory near the image base and even change it live.
@@ -151,13 +153,19 @@ None of these are read in detail; they are map/screen geometry, not combat math.
 6. `MOD_ROADMAP.md` item 7 (docks) and item 14 (gravity) touch four readers here
    (`generateCityLandscape`) and the preview's own `9.82` literal respectively — no overlap, but worth
    remembering that the city generator shares this pool entry.
-7. Built as `hf_tuning` v0.1.0 (`AI funnies\hf_tuning`): the three values are floats in a page
-   allocated next to the image base, and each of the 11 sites has only its disp32 rewritten
-   (`end + disp = our float`). Nothing is written to `0x140352838`.
+7. Built as `hf_tuning` v0.1.0 (`AI funnies\hf_tuning`): the values are floats in a page allocated
+   next to the image base, and each site has only its disp32 rewritten (`end + disp = our float`).
+   Nothing is written to `0x140352838`.
+   **Trap that cost a play test (v0.2.0 → v0.3.0):** Windows rounds an unaligned `VirtualAlloc`
+   reservation **down** to the 64 KiB allocation granularity. Scanning for a page by asking for the
+   first byte of each free region (`BaseAddress + RegionSize`, i.e. the end of the image) always
+   rounded back *into the image* and failed, so the page was never allocated and no scalar site got
+   patched — while the hook features, which need no page, kept working. Candidates must be rounded
+   **up** inside the region, and the allocation failure must not abort the whole mod.
 
 ## Per-`m_oid` overrides (v0.2.0, 2026-11-17)
 
-The same three features are now also tunable per engine and per ammo item, which needs code rather
+Both remaining features are now also tunable per engine and per ammo item, which needs code rather
 than a displacement rewrite. Both hooks are in `hf_tuning`; their sites:
 
 * **engine overheat per `m_oid`** — hook on `0x140028614` `MOVSS XMM0,[RSI+0x2ec]` in
