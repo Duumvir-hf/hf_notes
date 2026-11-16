@@ -69,9 +69,11 @@ The call must run on the **game thread**. A per-frame, always-running site that 
 ## Stopping a sound: the `Sound` record [code, 2026-11-15]
 
 `playSFXSound_` returns only `1.0`/`-1.0`, never a handle, so a mod cannot stop a sound through the
-call itself. The game keeps a record per playing sound, and that record can be found and destroyed.
-Established by static analysis plus a probe run (`hf_gun_mechanics` v0.15.0-probe); three earlier
-attempts crashed the game, and each failure is listed at the end so they are not repeated.
+call itself. The game keeps a record per playing sound, which can be found to stop its channel.
+The contributor reports a probe run (`hf_gun_mechanics` v0.15.0-probe) and three earlier crashes
+(2026-11-15); those runs were not independently reproduced. The layout and native cleanup paths
+below were checked against Ghidra's Steam 1.163 program on 2026-11-16 [code]. The corrected mod-side
+stop recipes below have not been validated in game.
 
 ### The `Sound` struct (176 bytes, from Ghidra's type database)
 | offset | size | field |
@@ -97,7 +99,7 @@ attempts crashed the game, and each failure is listed at the end so they are not
 | `+0xac` | 4 | `effPan` (float) |
 
 Note `+0xa4` is `effVolume`, **not** the volume you passed; that is `+0x58`. `+0x88` and `+0x90`
-hold the two float pointers from arguments 6 and 7, which is what makes a record identifiable.
+hold the two float pointers from arguments 6 and 7; a dedicated pointer can help identify a record.
 
 ### Finding your record
 `somethingAudio` (`0x147fc7660`) is a **pointer variable** to an array of 13 pointers, one per kind
@@ -114,55 +116,108 @@ record = *(u64*)(array + slot * 8)          // slot < DAT_1403c2cc0[kind]
 `99, 5, 10, 4, 4, 3, 4, 4, 4, 10, 99, 999, 99` — kind 11 (the radio category, `0xb`) has **999**
 slots. A sanity bound of 256 silently rejects it; use something generous.
 
-Identify the record by `record + 0x88 == your fadeVolume pointer`. That pointer is unique to the
-caller, so a match is unambiguous. **Scan all 13 kinds**, not just the one you played on: a probe run
-found the record in kind 11, but the game also moves records to a fizzled list (`DAT_147fc76a0`) and
-back, so do not assume.
+After checking that the slot is non-null and points to a valid `Sound`, compare
+`*(float**)(record + 0x88) == your fadeVolume pointer`. This identifies one record only if the pointer
+is dedicated to that live instance. Reusing it for overlapping sounds can produce several matches;
+the eight-slot status rings in `hf_voice` and `hf_ally` are not unique instance IDs.
 
-### Destroying it
-Call the record's **own virtual destructor**, vtable slot 0, with `(record, 1)`:
+`playSFXSound_` keeps the requested kind in `record + 0x28` and inserts into that kind's array.
+Scanning all 13 kinds is not a substitute for scanning the separate fizzled/dying list at
+`DAT_147fc76a0`: displaced records leave the arrays and enter that list. In the examined paths,
+they fade by reducing `volume` by `frame_time_ * 50.0` and are destroyed; no move-back path was found.
+The list is circular: its global holds a sentinel pointer; each 24-byte node has `next` at `+0`,
+`previous` at `+8`, and `Sound*` at `+0x10`. Any mod-side walk needs initialization/readability checks
+and a bounded traversal. Do not cache a record or slot across game updates.
+
+All lookup, stop and cleanup operations must run on the **game thread**, outside an in-progress
+audio-container traversal. Keep both multiplier pointers valid until native cleanup finishes.
+
+### Stopping the channel and letting the game clean up
+Prefer leaving container removal to `Sound_UpdateActiveChannels` (`0x1402e4dc0`) [code]:
+
+* For a validated live record, load the HGE object pointer from `0x143a119e0`, then its vtable,
+  and call the function at vtable byte offset `+0x200` with `(hge, record->handle)`.
+  This stops the channel, not the record. On the next maintenance pass `Sound_IsPlaying`
+  (`0x1402e4910`) sees the stopped channel and the game destroys/removes the record.
+* For a looping record (`field0x98 != 0`) with a live owner or `noOwner != 0`, writing **`-1.0`**
+  to its non-null `fadeVolume` also makes `Sound_IsPlaying` return false on the next pass.
+  `playStopFxSound` (`0x1402db4b0`) uses negative fade values for its ownerless loops.
+  A shared pointer affects every qualifying record that uses it; do not reset/reuse it before
+  cleanup if the intent is to stop those records.
+
+These paths avoid manually freeing a record that the audio containers still reference. The HGE
+stop path still requires a correctly identified live record and handle; it does not make arbitrary
+memory safe to pass to the engine.
+
+### Native destruction is only part of removal
+The record's scalar-deleting destructor is vtable slot 0, called with `(record, 1)`. The dispatch
+itself is shown below **only to explain the ABI; it is not a complete removal recipe**:
 
 ```rust
+// SAFETY: requires a live, validated Sound on the game thread and native-compatible
+// pointers. The owning audio container must also be cleaned up; see below.
 let vtable: usize = *(record as *const usize);
-let destroy: unsafe extern "C" fn(usize, i32) = std::mem::transmute(vtable);
+let destructor_address: usize = *(vtable as *const usize);
+let destroy: unsafe extern "C" fn(usize, u32) -> usize =
+    std::mem::transmute(destructor_address);
 destroy(record, 1);
 ```
 
-`Sound_Destructor` (`0x1402e2c10`) then stops the channel through HGE `+0x200` using the record's own
-handle, writes `-1.0` into `fadeVolume`, unlinks the record and frees it. This is exactly what
-`Sound_CompactAudioChannelArrays` (`0x1402e4c00`) and `Sound_UpdateActiveChannels` (`0x1402e4dc0`) do,
-so it is the sanctioned path. Do not free the record yourself.
+`Sound_Destructor` (`0x1402e2c10`, vtable `0x140376598`) stops the handle through HGE `+0x200`
+if HGE `+0x220` reports it playing. It writes `-1.0` to a non-null `fadeVolume` only when
+`link.node != NULL || noOwner != 0`, unlinks the **owner Link**, frees the name, and frees the record
+when `deleteFlag & 1` is set. **It does not remove audio-container membership or update counters.**
+
+`Sound_UpdateActiveChannels` separately clears the array slot and decrements the live-sound counter
+at `0x147fc769c`. For a dying-list entry it instead unlinks/frees the list node, decrements the list
+count at `0x147fc76a8`, and decrements the live-sound counter. `Sound_CompactAudioChannelArrays`
+(`0x1402e4c00`) likewise performs container cleanup outside the destructor and resets the live counter
+at the end. Calling the destructor alone leaves a dangling audio-container pointer, risking
+use-after-free or double-free on the next walk. Do not free the record yourself.
 
 ### Why muting is not enough
-`Sound_IsPlaying` (`0x1402e4910`) decides whether the reaper frees a record:
+After checking a non-zero handle and HGE `Channel_IsPlaying` (`+0x220`),
+`Sound_IsPlaying` (`0x1402e4910`) applies these lifetime conditions:
 
 ```c
 if ((sound->link).node == NULL && sound->noOwner == 0) {
-    if (sound->field0x98 == 0) return true;      // no fadeVolume check at all
+    return sound->field0x98 == 0; // detached/lost owner, not originally ownerless
 }
+if (sound->field0x98 == 0) return true;
+if (sound->fadeVolume == NULL) return true;
+return *sound->fadeVolume >= 0.0f;
 ```
 
-When a sound has no owner the `fadeVolume` check is **skipped**, so writing `0.0` does not kill the
-record. Worse for a looping sound: every record created with the same `fadeVolume` pointer shares it,
-so muting silences *all* of them and unmuting makes *all* of them audible again — a mod that re-calls
-`playSFXSound_` on every press accumulates loops that all play at once. Destroy the record instead.
+`playSFXSound_` sets `noOwner = (owner == NULL)`, so an originally ownerless sound takes the
+second path, not the first. Non-looping records skip the fade lifetime test; looping records that
+reach it accept **zero**. Thus `0.0` mutes but does not request removal. Records sharing a multiplier
+can all be muted/unmuted together; repeatedly creating loops can accumulate simultaneous playback.
+Use an explicit stop path rather than treating mute as destruction.
 
 Also: `playSFXSound_` resets `*fadeVolume` from `-1.0` to `0.0` on the next call, so `-1.0` is only a
 momentary "dead" marker, not a reliable flag to poll.
 
-### The three mistakes that crashed the game [game, 2026-11-15]
-1. **`DAT_143a119e0` is the HGE object, not a pointer to it.** Reading `*(u64*)0x143a119e0` gives the
-   object's vtable, and calling a slot on that crashes with "access violation *executing* address" in
-   the `0x14036xxxx` vtable region. Its vtable is at `0x1403672f0`; stop slot is `+0x200`.
-2. **Reading a `handle` from a record you have not identified** and passing it to HGE `+0x200` crashes:
-   the handle is garbage if the record is not a `Sound`. Use the record's destructor, which supplies
-   its own handle.
+### Reported probe failures and corrected interpretation
+The contributor reported these failures on 2026-11-15; crash reproduction and the original probe
+implementation have not been independently checked. The pointer interpretation is corrected here
+from native assembly [code, 2026-11-16]:
+
+1. **Confusing an object, its vtable, and a function pointer.** `0x143a119e0` holds the HGE object
+   pointer: `hge = *(u64*)0x143a119e0`, `vtable = *(u64*)hge`,
+   `stop = *(u64*)(vtable + 0x200)`. Pass `hge` as `this`, not the global's address or the vtable.
+   `Init_HGE` (`0x1401ad080`) stores `CreateHGE(0x180)` there; the destructor loads the object,
+   then its vtable, then calls `[vtable + 0x200]`. Calling a table address as code can explain an
+   execution fault in the `0x14036xxxx` data region, but does not establish the reported crash's cause.
+2. **Reading a handle from an unidentified record.** Validate the live `Sound` before using its
+   `+0x2c` handle. Calling a destructor on an unidentified pointer is not safer: it also dereferences
+   that pointer and may free unrelated memory.
 3. **Comparing the leaked name pointer instead of the name.** A helper that allocates a `CString` per
    call returns a new pointer every time, so a pointer comparison always reports "changed" and the
    sound is re-created on every trigger. Compare the string.
 
 ## Open
-* The kind tables, arguments 7-11 and 13, other threads, NULL for argument 6.
+* Kind falloff/timer tables; remaining flag semantics for arguments 8-11 and 13; other threads;
+  NULL for argument 6 and the corrected stop recipes still need in-game validation.
 * Roadmap item "audio cue when aircraft intercept" ([roadmap.md](roadmap.md)) now has its play recipe: `radio_kill_06` through this call.
 
 ## Sounds seen in the map code [code, 1.151 names]
