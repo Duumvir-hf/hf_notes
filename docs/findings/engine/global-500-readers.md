@@ -183,6 +183,13 @@ than a displacement rewrite. Both hooks are in `hf_tuning`; their sites:
   burn timer `+0x3d4` reaches 0.
 * The 300 mm rocket (logic 132) can also be launched as a *ship part* (`creatureLogic` state 0); that
   path never passes the four stores and keeps the scalar.
+* **burn time (v0.4.0)** — `Body +0x3d4` (`m_logic_f2`) is the burn timer, and the vanilla 1.5 s is
+  stored in four places: `0x140030e9d` (`FireShell` rocket case, body RBX), `0x1400313d1` and
+  `0x140031c53` (`FireShell` rocket cases, body RSI), and **`0x14003538e` in `creatureLogic` state 0 of
+  logic 132** — the 300 mm rocket does *not* set its burn in `FireShell` (case 0x36 sets only ttl and
+  the `+0x4a8` link), so that state-0 store is the one that covers it, for both the fired and the
+  part-launched path. Each store is replaced by a callback writing the configured value; the rocket
+  glow particle life is read from `+0x3d4` right after the store, so the visuals follow.
 * Interoperability: the hook sites are disjoint from `ammo_extended` (FireShell switch
   `0x1400302c8`), `hf_gun_mechanics` and `qol`; all three mods install through patchy-rs, whose
   `validate_patch_sources` / `ensure_patches_do_not_overlap_installed` make a same-bytes conflict a
