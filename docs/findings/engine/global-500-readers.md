@@ -155,3 +155,28 @@ None of these are read in detail; they are map/screen geometry, not combat math.
    allocated next to the image base, and each of the 11 sites has only its disp32 rewritten
    (`end + disp = our float`). Nothing is written to `0x140352838`.
 
+## Per-`m_oid` overrides (v0.2.0, 2026-11-17)
+
+The same three features are now also tunable per engine and per ammo item, which needs code rather
+than a displacement rewrite. Both hooks are in `hf_tuning`; their sites:
+
+* **engine overheat per `m_oid`** — hook on `0x140028614` `MOVSS XMM0,[RSI+0x2ec]` in
+  `Engine_ApplyThrustForce` (8 bytes), resume at `0x14002861c` (the untouched `COMISS`). The callback
+  returns `T + (scalar − per_oid)` so the vanilla `>= 500` compare tests the engine's own threshold.
+  The `m_oid` is `Body +0x190` (EscadraString), read per call — no state to invalidate.
+* **rocket acceleration per ammo `item_name`** — the rocket body carries **no** ammo identity:
+  `FireShell`'s rocket cases build it inline (`New(0xa40)` + `Body_Constructor` + `CreateShell_`),
+  never call `Body_InitializeCannonShell`, set no `+0x490` gun link and no `m_oid`; all they copy is
+  `explosivePower`, `logic` (from `ammo->caliber`) and `ttl`, and NAR122 / 220 mm / NAR340 all share
+  logic 130. The Ammo record is live at the four `body->logic = ammo->caliber` stores —
+  `0x140030e90` (body RBX), `0x1400313c4` (RSI), `0x1400319d0` (RBX), `0x140031c46` (RSI), Ammo always
+  in `R15`, six bytes `89 83/86 C4 03 00 00` — so a hook there stores `body → accel` in the mod's
+  own map and the two burn sites (`0x1400348f2`, `0x140034c0c`) ask it. Entries are dropped when the
+  burn timer `+0x3d4` reaches 0.
+* The 300 mm rocket (logic 132) can also be launched as a *ship part* (`creatureLogic` state 0); that
+  path never passes the four stores and keeps the scalar.
+* Interoperability: the hook sites are disjoint from `ammo_extended` (FireShell switch
+  `0x1400302c8`), `hf_gun_mechanics` and `qol`; all three mods install through patchy-rs, whose
+  `validate_patch_sources` / `ensure_patches_do_not_overlap_installed` make a same-bytes conflict a
+  clean `SourceChanged` / `OverlappingPatch` error rather than corruption.
+
