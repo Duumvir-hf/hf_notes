@@ -14,7 +14,7 @@ Notes behind the HighFleet mods: Steam **1.163**, with **1.151** comparisons. Im
 | Directory | Contents |
 |---|---|
 | [Findings](docs/findings/README.md) | AI, aircraft, combat, crashes, engine internals, physics, ships, simulator and strategy |
-| [Rendering and GUI](docs/rendering/README.md) | Frame pipeline, text, sprites, screens, controls and HUD |
+| [Graphics knowledge base](hf_graphics/README.md) | Native GUI, text, sprites, HUD, calling rules, source catalog and library/tool proposal |
 | [Mods](docs/mods/README.md) | Mod reference pages, configuration and debug tools |
 | [Runs](docs/runs/README.md) | In-game observations, benchmarks and dated simulator validation |
 | [Ghidra history](docs/ghidra/README.md) | Dated change logs, sweep reports and audit evidence |
@@ -28,7 +28,7 @@ Notes behind the HighFleet mods: Steam **1.163**, with **1.151** comparisons. Im
 
 ## Filing rules
 
-- Put durable answers in the appropriate findings topic; keep UI research in `docs/rendering/`.
+- Put durable answers in the appropriate findings topic; keep graphics and UI research in `hf_graphics/`.
 - Put run-specific evidence in `docs/runs/`, and Ghidra change/sweep/audit records under `docs/ghidra/YYYY-MM-DD/`.
 - Keep reusable datasets in `docs/data/`, grouped by purpose. Keep third-party material in `ref/`.
 - Keep filenames descriptive and update relative links and the relevant folder index when moving or adding notes.

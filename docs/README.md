@@ -24,7 +24,7 @@ This catalog preserves the detailed descriptions from the original repository in
 Layout:
 - `docs/` core reference docs and this catalog;
 - `docs/findings/` one note per question, grouped by game system (start at its README);
-- `docs/rendering/` how the game draws and how its screens and GUI work (start at its README);
+- `hf_graphics/` graphics/GUI knowledge base, calling recipes, source catalog and toolkit proposal; `docs/rendering/` contains compatibility forwards only;
 - `docs/mods/` one page per mod and the debug tools;
 - `docs/runs/` dated reports (evidence, not reference);
 - `docs/ghidra/YYYY-MM-DD/` dated change logs, sweeps and audit evidence;
@@ -55,21 +55,25 @@ Layout:
 | [docs/hooks.md](hooks.md) | hooking techniques, who owns which patch site, candidate sites |
 | [docs/content.md](content.md) | dialogue, characters, events, textures (study + experiment plan) |
 
-## Rendering and GUI
-How the game draws, how its screens and GUI elements are built, and the probe evidence behind them. Start at the README. (`docs/rendering/`)
+## Graphics and GUI
+Start at [hf_graphics](../hf_graphics/README.md). It consolidates the rendering
+notes with current implementation recipes, safety corrections and a library/tool
+proposal. Old `docs/rendering/` pages forward to the canonical copies.
 
 | Read | For |
 |---|---|
-| [docs/rendering/README.md](rendering/README.md) | plain-language overview: how a frame is drawn, what a seam is, recipe to draw text and sprites, best seam per screen, how to test a seam |
-| [docs/rendering/render-pipeline.md](rendering/render-pipeline.md) | how the game draws: frame tasks, scene dispatcher, stock `hgeFont` text path, fonts, hook seam |
-| [docs/rendering/editor-frame.md](rendering/editor-frame.md) | where an in-game editor hint could hook: `_FrameFunc` task order, game-thread input site, text path; history of the drawing question, the answer is [render-pipeline.md](rendering/render-pipeline.md) |
-| [docs/rendering/fonts.md](rendering/fonts.md) | every game font: files, metrics, ASCII-only charsets, what the editor uses, live look of the sampled ones, how a mod draws text |
-| [docs/rendering/images-and-sprites.md](rendering/images-and-sprites.md) | every image is an `Animation` in `Media/Tex/*.res`, resource getters, sprite object layout, `Render` / `RenderEx` (drawing confirmed in game, run 2) |
-| [docs/rendering/gui-elements.md](rendering/gui-elements.md) | making a GUI element the game's own way: the creation recipe (12-argument initializer), element list and fields, coordinates, hiding instead of freeing, the `ClickFunc` swallow trampoline |
-| [docs/rendering/click-func.md](rendering/click-func.md) | the GUI click handler `ClickFunc` (1.151 `0x1401261d0`, 1.163 `0x14012f120`): size, caller, what the probe logs, live-test recipe; also the 252-name element catalog and four decompiled branches (BUY_BUY, FUEL_BUY_SLIDER, MAPMODE_MISSION_*) |
-| [docs/rendering/precombat-screen.md](rendering/precombat-screen.md) | the pre-combat screen: the two builders (`FUN_1402d73a0` is the live one), card order = squad order, the native ammo selector layout, the per-ship ALLY buttons `hf_ally` builds on it, how they follow a card shuffle, the slot-1 PLAYER text label and the roller covers |
-| [docs/rendering/seam-test-run-1.md](rendering/seam-test-run-1.md) | seam test runs 1 and 2 (probe v2.2): labels after every flush call of the map, battle and menu renderers; which seams fire and which are clean; map seam M11 chosen (evidence for the README above) |
-| [docs/rendering/ui-events-and-screens.md](rendering/ui-events-and-screens.md) | probe v2.0 run: log-only hooks for clicks, text keys, sounds and level loads, gold, location and fleet watchers, which dispatcher flag is which screen |
+| [Calling guide](../hf_graphics/calling-guide.md) | current hook selection, ABI caveats, coordinates and shared-state restoration |
+| [Native GUI cookbook](../hf_graphics/native-gui.md) | construction, complete registry scans, safe reuse, repainting, clicks and teardown |
+| [HUD and panels](../hf_graphics/hud-and-panels.md) | projection, rings, reticles, private targets and preview limitations |
+| [Source catalog](../hf_graphics/sources.md) | workspace implementation/evidence inventory and historical corrections |
+| [Library/tool proposal](../hf_graphics/library-and-tools.md) | reusable core, cross-DLL hook ownership, audit blockers and useful tooling |
+| [Validation](../hf_graphics/validation.md) | visual, input, lifetime, compatibility and performance checks |
+| [Frame overview](../hf_graphics/frame-overview.md), [pipeline](../hf_graphics/render-pipeline.md), [editor frame](../hf_graphics/editor-frame.md) | original frame/task/scene/seam evidence |
+| [Fonts](../hf_graphics/fonts.md), [images and sprites](../hf_graphics/images-and-sprites.md) | resource inventories, formats, metrics and observed rendering |
+| [GUI evidence](../hf_graphics/gui-elements.md), [pre-combat screen](../hf_graphics/precombat-screen.md) | original construction and screen research, with current guidance |
+| [ClickFunc](../hf_graphics/click-func.md), [archived review](../hf_graphics/click-func-analysis.md) | dispatch catalog, hook and corrections |
+| [HUD callouts](../hf_graphics/battle-hud-callouts.md), [ship panels](../hf_graphics/battle-ship-panels.md) | native HUD colour and preview research |
+| [Seam runs](../hf_graphics/seam-test-run-1.md), [UI events/screens](../hf_graphics/ui-events-and-screens.md) | original probe observations |
 
 ## Findings
 One self-contained note per question; each ends with unknowns or a live-test recipe. The [topic index](findings/README.md) is the complete inventory, including notes not described in the tables below.
@@ -79,7 +83,8 @@ One self-contained note per question; each ends with unknowns or a live-test rec
 |---|---|
 | [docs/findings/ai/ai-hf-ai-design.md](findings/ai/ai-hf-ai-design.md) | why a DLL is the way to change the AI, the `hf_ai` design (log-only steering hook, `decide()`), the `ai_flares` missile-panic algorithm, the overshoot-dodge idea, hook-ownership clash |
 | [docs/findings/ai/ai-flares.md](findings/ai/ai-flares.md) | why AI ships never use flares (missing trigger, not missing parts) and a mod design |
-| [docs/findings/strategy/mercenary-ships.md](findings/strategy/mercenary-ships.md) | where the mercenary/reinforcement ships offered for money come from: hard-coded tier pools in `addReinforceingShips` 0x14021b8c0, tier chosen by the `ASK_REINFORCE` dialog, not by the city; also why `m_npcs` is Tarkhans, not ships |
+| [docs/findings/strategy/mercenary-ships.md](findings/strategy/mercenary-ships.md) | city mercenary/endgame ships (`m_npcs` with `m_tarkhan == 0`, fed by `somethingSpawnShips` pools 2 and 4), named Tarkhan ships (`m_tarkhan == 1`, 11-ship roll at `0x14028f620`), and Tarkhan call-in reinforcements (`addReinforceingShips` `0x14021b8c0`) |
+| [docs/findings/strategy/enemy-ship-pools.md](findings/strategy/enemy-ship-pools.md) | every ship spawn pool in 1.163: Strike Groups (`Endgame_BuildEscadra`), Garrisons (`somethingSpawnShips` pool 0), Tactical Air/Missile packages (`chanceA`/`chanceB`), Tarkhans, Mercs, Trade Convoys, and dead Skirmish/Editor pools |
 | [docs/findings/ai/ai-tick-patch-sites.md](findings/ai/ai-tick-patch-sites.md) | the tactical AI in 1.163: close-range cutoff, stand-off retreat, ammo choice, launch limits, byte-exact patch sites |
 | [docs/findings/ai/ai-telemetry.md](findings/ai/ai-telemetry.md) | battle telemetry in `hf_ally` (local development build; feature `telemetry`; not in public packs since v0.14.3, still in older `highfleet-allies` commits/releases): the CSVs, part list and part health, ship name `+0xa90`, aim signal `vc2/vc3`, flying-body array and per-frame birth/death log, first captures, missile overshoot test |
 | [docs/findings/ai/ai-aircraft-launch.md](findings/ai/ai-aircraft-launch.md) | why the strategic AI launches all aircraft at once, launch conditions, patch sites |
@@ -114,9 +119,10 @@ One self-contained note per question; each ends with unknowns or a live-test rec
 | [docs/findings/physics/player-thrust-keys-and-engine-heat.md](findings/physics/player-thrust-keys-and-engine-heat.md) | Q/E/S keys to command angles (exact atan2 and wrap rules, +-pi tie), swivel servo law, Shift strength, spool, every gate that zeroes an engine's force, engine overheat lockout (500 / 3 s) and why the Kormoran barely spins |
 | [docs/findings/physics/box2d-function-map.md](findings/physics/box2d-function-map.md) | Names applied in Ghidra for the embedded Box2D 2.3 (world, tree, broadphase, contacts, narrowphase, joints), what was verified, unit scaling 0.05, flight-input helpers, helper-agent claims that were wrong |
 | [docs/findings/simulator/box2d-world-settings-for-sim.md](findings/simulator/box2d-world-settings-for-sim.md) | One-page checklist of the Box2D combat settings (dt 0.02 fixed, 10/10, gravity (0,+0.491) acting on hulls, damping 0.05, constants all stock 2.3, force/torque scalings, joint setups, no velocity clamps) against a pybox2d sim |
-| [docs/findings/simulator/engine-heat-sim-validation.md](findings/simulator/engine-heat-sim-validation.md) | what the simulator's engine heat model was checked against (dose, conduction, extinguisher, trip times), the open swivel-heating gap after an extinguisher use, and the simdiff tool |
-| [docs/findings/simulator/simulator-tooling.md](findings/simulator/simulator-tooling.md) | how the simulator rebuilds the flown ship from the .hftm dumps (dump + extra + joint rows, leg and antenna fixes), design variants and their engine banks, key timing, truss conduction scale, the simdiff tool and what is still open |
+| [docs/findings/simulator/engine-heat-sim-validation.md](findings/simulator/engine-heat-sim-validation.md) | what the simulator's engine heat model was checked against (dose, conduction, 30-unit whole-part-list FSS reset, `+1.0/tick` burn self-heat, `246/248` lockout trips at `0.000 s` median lateness) and the `simdiff` tool |
+| [docs/findings/simulator/simulator-tooling.md](findings/simulator/simulator-tooling.md) | `SIM_STABLE_V2` package layout, rebuilding the flown ship from `.hftm` dumps (dump + extra + joint rows, folded leg and antenna fixes), bank-code variant matching, 50 Hz `EA` key/command timing, validation tools and 28-session accuracy |
 | [docs/findings/combat/shell-detonation-paths.md](findings/combat/shell-detonation-paths.md) | what calls the blast routine: contact (0 <= +0x38c < I), flak gun cone, hp death; arming rule of plain shells (20/|v| s, then threshold 25 x mass), probe evidence |
+| [docs/findings/combat/friendly-fire-phasing.md](findings/combat/friendly-fire-phasing.md) | friend/foe projectile phasing: the `ShouldCollide` owner/side rules, why the desowning pair is not a fuse, the blast paths that bypass area damage, proximity fuzes, and the patch/effort plan |
 | [docs/findings/engine/creature-logic-id-map.md](findings/engine/creature-logic-id-map.md) | logic id to code block map of creatureLogic (plain shell 100, timed fuse 110, stabiliser 200, missiles 1/3/4/135), dispatch tables |
 | [docs/findings/physics/static-engine-force-path.md](findings/physics/static-engine-force-path.md) | how a static engine force is applied (angle, point, body), the Frame air-drag torque in Body_PreStepUpdate (hull-angle dependent), who else writes torque / angular velocity |
 | [docs/findings/physics/hull-stabiliser-engine-logic.md](findings/physics/hull-stabiliser-engine-logic.md) | the hull stabiliser: creatureLogic case 200, per-engine Body_AddTorque (PD on spin and wrapped angle, cap +-m_at); the +-pi flip; +0xbc4 spool ramp |
@@ -124,7 +130,7 @@ One self-contained note per question; each ends with unknowns or a live-test rec
 | [docs/findings/ai/ai-behaviour-states.md](findings/ai/ai-behaviour-states.md) | tactical AI states (+0xbdc 0..7), kinds (+0xbd8), roles, target choice and scoring (20000/distance, 3 s re-roll) |
 | [docs/findings/physics/hull-rotation-behaviour.md](findings/physics/hull-rotation-behaviour.md) | why ships spin the way they do (one-page overview at the top): the per-engine stabiliser torque (damping on spin, pull to level, 0.6 s tail), worked numbers, why swivel-only and static-only designs are smooth and swivel + static designs lurch once per turn, what was ruled out, what is open |
 | [docs/findings/combat/contact-damage-and-fire.md](findings/combat/contact-damage-and-fire.md) | contact damage (0.8 x solver impulse, armour threshold, x0.6 player scaling, tear-off above 4e6) and the heat-based fire model (only fuel tanks and engines burn) |
-| [docs/findings/simulator/simulator-research.md](findings/simulator/simulator-research.md) | combat-simulator research in one page: Box2D physics, cmass as moving mass, engine force/servo and the corrected engine names, fuel paths, AI force status, damage/kill pointers, corrections to earlier claims, what is still unknown |
+| [docs/findings/simulator/simulator-research.md](findings/simulator/simulator-research.md) | combat-simulator research in one page: Box2D physics, Frame quadratic drag, hull stabiliser, folded legs, engine heat/FSS, full AI steering + avoidance pipeline, shell/blast/kill rules, corrections to earlier claims, and remaining gaps |
 | [docs/findings/combat/explosion-damage-1151-vs-1163.md](findings/combat/explosion-damage-1151-vs-1163.md) | why 1.163 missile hits reach deeper into a ship: Zenith warhead 200 to 300, armor hit x2 to x4, part cost flat 5 to maxHP/20; 180mm shells unchanged; run-time evidence from both versions |
 | [docs/findings/combat/elevation-rules-1151-vs-1163.md](findings/combat/elevation-rules-1151-vs-1163.md) | why 1.163 blocks gun arcs and the KAZ more than 1.151: candidate floor +1 in `World_RaycastBodies`, KAZ cone 1.2 vs pi/4, KAZ covered gate type 3/0.5 vs 5/0.15; patch ideas (not applied); floor offsets 0x978/0x980 |
 | [docs/findings/ships/sensors-and-crew.md](findings/ships/sensors-and-crew.md) | how sensors combine (max vs sum), crew capacity vs fuel capacity |
@@ -163,7 +169,7 @@ Status, repo and page for every mod: [docs/mods/README.md](mods/README.md).
 | [docs/mods/probe.md](mods/probe.md) | `hf_probe`, the debug-only logging DLL: install, config, what it logs |
 
 ## Runs
-Dated reports: evidence, not reference. (`docs/runs/`; probe and seam-test runs about the screens are in `docs/rendering/`)
+Dated reports: evidence, not reference. (`docs/runs/`; probe and seam-test runs about the screens are in `hf_graphics/`)
 
 | Read | For |
 |---|---|

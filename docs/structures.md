@@ -72,6 +72,7 @@ declared on Node vs Body is still open):
 | 49 | `+0x188` | 0x14001b7f0 | |
 | 53 | `+0x1a8` | 0x140049e10 | |
 | 54 | `+0x1b0` | 0x14004a560 | |
+| 59 | `+0x1d8` | 0x140049c30 | **`Node_UpdateDesowning`** — copies the owner link to `link2`, decrements `desowningTimer` (`+0xf4`), clears the owner at 0; clears `+0x818`/`+0x820`/`+0x180`. Not a shell fuse; see [friendly-fire-phasing.md](findings/combat/friendly-fire-phasing.md) |
 | 56 | `+0x1c0` | 0x14004a9f0 | |
 | 57 | `+0x1c8` | 0x14004a8b0 | |
 | 58 | `+0x1d0` | 0x140048020 | |
@@ -489,18 +490,24 @@ Population chain:
   `0x1402a7f60`, endgame spawn `0x140261a20`. Event data sets NPC flags, e.g.
   `*(npc+0xf9)=1`.
 
-NPC record (`NPC`, 0x158 bytes): `+0x00` vftable, `+0x08` class name,
-`+0x50` LabelName, `+0x70` HUD name, `+0x90` third name, **`+0xb0` city name**,
-**`+0xd0` card name**, `+0xf0` int RNG seed, `+0xf6` isPrologueNpc, `+0xf9`
-availability/hired byte. All five names are `EscadraName` (0x20 bytes).
+NPC record (`NPC`, 0x158 bytes, serialized by `Npc_RegisterProperties` `0x14023fbd0`):
+`+0x00` vftable, `+0x08` class name, `+0x48` `m_loyalty` (stars = `loyalty / 3`),
+`+0x50` `m_name`, `+0x70` `m_fullname`, `+0x90` `m_description`,
+**`+0xb0` `m_location` (city name)**, **`+0xd0` `m_ship_first` (ship design name)**,
+`+0xf0` `m_ship_first_seed` (int RNG seed), `+0xf6` `m_joined`,
+**`+0xf9` `m_tarkhan`** (`0` = hireable merc ship, `1` = Tarkhan). All five strings
+are `EscadraName` (0x20 bytes).
 
 Hire screen: `somethingHireShips_` `0x140266100` (called from `0x140265d80`
 with `CURRENT_LOCATION`) iterates `m_npcs`, keeps NPCs whose `+0xb0` string
-equals `Location+0xc8`, reseeds from `+0xf0`, prices `Creature+0x15d0/100` and
-draws the `for_hire` / `for_join` card (`+0xf9` suppresses the FOR_HIRE label).
-**There is no per-ship mercenary flag**: after hiring the ship is an ordinary
-fleet `Escadra`; nothing marks it. No string "merc" exists in the exe or game
-data, and no code compares `Location+0x25c` (city type) to 6 — the only tests
-are 2/3/5.
+equals `Location+0xc8`, spawns a pier preview of `+0xd0`, reseeds from `+0xf0`,
+prices `floor(Creature+0x15d0 / 100) * 100` and draws the `for_hire` / `for_join`
+(endwar) / `for_tarkhan` (`+0xf9 != 0`) card. `Prologue_SpawnEventGroups`
+(`0x1402a7f60`) assigns city types `2..6` into `Location+0x25c` and stocks
+type-6 (mercenary) cities with up to 5 `m_tarkhan == 0` ship cards from
+`somethingSpawnShips` pool 2; `spawnEndgameShips?` (`0x140261a20`) stocks
+endgame cities with up to 3 free `for_join` cards from pool 4.
+**There is no per-ship mercenary flag**: after hiring (`!ClickFunc` `0x140136cfe`),
+the pier `Creature` is linked directly into the player's `Escadra`; nothing marks it.
 
 Full write-up: [findings/mercenary-ships.md](findings/strategy/mercenary-ships.md).

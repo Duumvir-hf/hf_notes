@@ -8,6 +8,7 @@ Raw TSV/JSON datasets are preserved byte-for-byte. Paths quoted inside historica
 
 | Date | Entry point | Supporting evidence |
 |---|---|---|
+| 2026-11-05 | [Change log](2026-11-05/ghidra-changes-2026-11-05.md) | Friendly-fire phasing: `Node_UpdateDesowning` rename, collision/blast/KAZ/side-test comments |
 | 2026-10-30 | [Change log](2026-10-30/ghidra-changes-2026-10-30.md) | [Classification report](2026-10-30/unnamed-classification-2026-10-30.md), [table](2026-10-30/unnamed-classification-2026-10-30.tsv), [sweep reports](2026-10-30/README.md) |
 | 2026-10-29 | [Change log](2026-10-29/ghidra-changes-2026-10-29.md) | [Sweep and audit index](2026-10-29/README.md), including raw inputs and archived snapshots |
 | 2026-10-28 | [Change log](2026-10-28/ghidra-changes-2026-10-28.md) | Ammo funding/refund and plane combat paths |

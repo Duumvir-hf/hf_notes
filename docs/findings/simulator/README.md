@@ -2,8 +2,8 @@
 
 [All findings](../README.md) · [Physics](../physics/README.md) · [Dated validation runs](../../runs/README.md)
 
-- [Simulator research overview](simulator-research.md)
-- [Simulator tooling](simulator-tooling.md)
+- [Simulator research overview](simulator-research.md) — physics, engines, hull stabiliser, folded legs, heat/FSS, AI pipeline, blast/kill rules, and remaining gaps
+- [Simulator package, tooling and validation](simulator-tooling.md) — `SIM_STABLE_V2` architecture, dump reconstruction, command timing, `simdiff`/`simmetrics`/`simreport`/`simview`, and 28-session accuracy numbers
 - [Box2D world settings checklist](box2d-world-settings-for-sim.md)
 - [Engine heat validation](engine-heat-sim-validation.md)
 - [Combat hit hook sites](combat-hit-hook-sites.md)

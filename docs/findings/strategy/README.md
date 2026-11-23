@@ -4,8 +4,10 @@
 
 ## Campaign and engagement setup
 
+- [Enemy and campaign ship pools](enemy-ship-pools.md)
+- [Group counts (convoy / SG / tactical spawn counts)](group-counts.md)
 - [Level .seria scenario dispatcher](level-seria-dispatcher.md)
-- [Mercenary and reinforcement ships](mercenary-ships.md)
+- [Mercenary, Tarkhan, and reinforcement ships](mercenary-ships.md)
 - [Strategic missile target assignment](strategic-missile-target-assignment.md)
 - [End game](end-game.md)
 

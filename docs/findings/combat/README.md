@@ -24,4 +24,12 @@ Start with the [weapons index](weapons-index.md): it links routines, corrections
 - [Cluster bomblet lifetime](cluster-bomblet-ttl.md)
 - [Logic 120: delayed airbrake warhead](logic-120-delayed-airbrake-warhead.md)
 
+## Battle results
+
+- [Battle honor and XP](honor-and-xp.md) — `Creature+0x1a24`, the award site and the return-to-map conversion to `m_xp`
+
+## Friendly-fire rules
+
+- [Friendly-fire phasing: shells through allies, shells through enemies](friendly-fire-phasing.md) — assessment and patch plan: `ShouldCollide`, blast, proximity fuzes, KAZ/AI gate
+
 Strategic missiles: [tactical target assignment](../strategy/strategic-missile-target-assignment.md).
