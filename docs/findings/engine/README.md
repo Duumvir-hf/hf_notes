@@ -4,6 +4,7 @@
 
 - [Source-file names embedded in the executable](source-file-names.md)
 - [Creature logic ID map](creature-logic-id-map.md)
+- [Shared `500.0f` literal and its 85 readers](global-500-readers.md)
 - [Mouse sensitivity](mouse-sensitivity.md)
 - [Mod and data hot-reload feasibility](hot-reload-feasibility.md)
 
